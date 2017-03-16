@@ -4,14 +4,14 @@
 # uses netapp managability sdk
 
 import sys
-sys.path.append("../NetApp/netapp-manageability-sdk-5.6/lib/python/NetApp/")
+sys.path.append("./library/netapp-manageability-sdk-5.6/lib/python/NetApp/")
+
 try:
     from NaServer import *
     has_nasdk = True
 except:
     has_nasdk = False    
 
-    
 if not has_nasdk :
     print "NetApp managability SDK 5.2 or higher is required to use this script. download"
     print "installation from: https://support.netapp.com"
