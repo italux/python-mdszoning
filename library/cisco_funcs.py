@@ -205,8 +205,9 @@ def device_alias_exists(mds, pwwn):
     # Compile a regex with the received zone name
     # make a search into the zone result variable,
     # and count the total number of matches
-    regex = re.compile('device-alias\sname\s(.*)pwwn\s(%s)' % pwwn)
+    regex = re.compile('device-alias\sname\s(.*)pwwn\s(%s)' % pwwn, re.IGNORECASE)
 
     for device_alias in device_alias_db.split('\n'):
         if regex.search(device_alias):
             return device_alias.split()[2]
+        
