@@ -95,119 +95,118 @@ def getzones(sh_zones) :
             
     return(zones_list)
 
-def zone_exists(mds, zone_name, vsan_id):
-    """ Check if a specifc zone name exists on MDS switch opening a connection with MDS switch
-    and execute \"show zoneset brief\" commands receiving vsan id as a param  """
+class SmartZone(object):
+    """docstring for SmartZone"""
 
-    # Instantiate a netmiko connection with MDS and,
-    # if anything goes wrong a wxception will raise
-    try:
-        conn = ConnectHandler(**mds)
-    except Exception, e:
-        raise e
+    def __init__(self, mds):
+        super(SmartZone, self).__init__()
+        self.mds = mds
 
-    # Receive VSAN ID param and define the zoneset command,
-    # send to MDS, store the result into a variable
-    command = 'show zoneset brief vsan %s' % vsan_id
-    zoneset_brief = conn.send_command(command)
+        # Instantiate a netmiko connection with MDS
+        self.conn = ConnectHandler(**mds)
 
-    # Close the connection after execute command
-    conn.disconnect()
-    
-    # Compile a regex with the received zone name
-    # make a search into the zoneset resukt variable,
-    # return True if the zone name was found or False if doesn't
-    regex = re.compile(zone_name)
+    def exists(self, zone_name, vsan_id):
+        """ Check if a specifc zone name exists on MDS switch opening a connection with MDS switch
+        and execute "show zoneset brief" commands receiving vsan id as a param  """
 
-    if regex.search(zoneset_brief):
-        return True
-    else:
-        return False
-
-def zoneset_exists(mds, zoneset_name, vsan_id):
-    """ Check if a specifc zoneset name exists on MDS switch opening a connection with MDS switch
-    and execute \"show zoneset brief\" commands receiving vsan id as a param  """
-
-    # Instantiate a netmiko connection with MDS and,
-    # if anything goes wrong a wxception will raise
-    try:
-        conn = ConnectHandler(**mds)
-    except Exception, e:
-        raise e
-
-    # Receive VSAN ID param and define the zoneset command,
-    # send to MDS, store the result into a variable
-    command = 'show zoneset brief vsan %s' % vsan_id
-    zoneset_brief = conn.send_command(command)
-
-    # Close the connection after execute command
-    conn.disconnect()
-    
-    # Compile a regex with the received zoneset name
-    # make a search into the zoneset result variable,
-    # return True if the zoneset name and VSAN ID was found or False if doesn't
-    regex = re.compile("^zoneset.*(%s).vsan.*(%s)" % (zoneset_name,vsan_id))
-    
-    if regex.search(zoneset_brief):
-        return True
-    else:
-        return False
-
-def count_smartzone_members(mds, zone_name):
-    """ Count the total members existent on a specifc smartzone, including initiator and target members """
-
-    # Instantiate a netmiko connection with MDS and,
-    # if anything goes wrong a wxception will raise
-    try:
-        conn = ConnectHandler(**mds)
-    except Exception, e:
-        raise e
-
-    # Receive zone name as a param and define the command to be
-    # send to MDS, store the result into a variable
-    command = 'show zone name %s' % zone_name
-    zone_members = conn.send_command(command)
-
-    # Close the connection after execute command
-    conn.disconnect()
-    
-    # Compile a regex with the received zone name
-    # make a search into the zone result variable,
-    # and count the total number of matches
-    regex = re.compile('pwwn.*(init|target)')
-
-    members = 0
-
-    for member in zone_members.split('\n'):
-        if regex.search(member):
-            members += 1
-
-    return members
-
-def device_alias_exists(mds, pwwn):
-    """ Count the total members existent on a specifc smartzone, including initiator and target members """
-
-    # Instantiate a netmiko connection with MDS and,
-    # if anything goes wrong a wxception will raise
-    try:
-        conn = ConnectHandler(**mds)
-    except Exception, e:
-        raise e
-
-    # Receive zone name as a param and define the command to be
-    # send to MDS, store the result into a variable
-    command = 'show device-alias database'
-    device_alias_db = conn.send_command(command)
-
-    # Close the connection after execute command
-    conn.disconnect()
-    
-    # Compile a regex with the received zone name
-    # make a search into the zone result variable,
-    # and count the total number of matches
-    regex = re.compile('device-alias\sname\s(.*)pwwn\s(%s)' % pwwn, re.IGNORECASE)
-
-    for device_alias in device_alias_db.split('\n'):
-        if regex.search(device_alias):
-            return device_alias.split()[2]
+        # Receive VSAN ID param and define the zoneset command,
+        # send to MDS, store the result into a variable
+        command = 'show zoneset brief vsan %s' % vsan_id
+        zoneset_brief = self.conn.send_command(command)
         
+        # Compile a regex with the received zone name
+        # make a search into the zoneset resukt variable,
+        # return True if the zone name was found or False if doesn't
+        regex = re.compile(zone_name)
+
+        if regex.search(zoneset_brief):
+            return True
+        else:
+            return False
+
+    def count_members(self, zone_name):
+        """ Count the total members existent on a specifc smartzone, including initiator and target members """
+
+        # Receive zone name as a param and define the command to be
+        # send to MDS, store the result into a variable
+        command = 'show zone name %s' % zone_name
+        zone_members = self.conn.send_command(command)
+        
+        # Compile a regex with the received zone name
+        # make a search into the zone result variable,
+        # and count the total number of matches
+        regex = re.compile('pwwn.*(init|target)')
+
+        members = 0
+
+        for member in zone_members.split('\n'):
+            if regex.search(member):
+                members += 1
+
+        return members
+
+    def close(self):
+        """ Close connection with MDS switch """
+        self.conn.disconnect()
+
+class DeviceAlias(object):
+    """docstring for DeviceAlias"""
+    def __init__(self, mds):
+        super(DeviceAlias, self).__init__()
+        self.mds = mds
+
+        # Instantiate a netmiko connection with MDS
+        self.conn = ConnectHandler(**mds)
+
+    def exists(self, pwwn):
+        """ Count the total members existent on a specifc smartzone, including initiator and target members """
+
+        # Receive pwwn as a param and define the command to be
+        # send to MDS, store the result into a variable
+        command = 'show device-alias database'
+        device_alias_db = self.conn.send_command(command)
+        
+        # Compile a regex with the received pwwn
+        # make a search into the device-alias database
+        # result variable, and count the total number of matches
+        regex = re.compile('device-alias\sname\s(.*)pwwn\s(%s)' % pwwn, re.IGNORECASE)
+
+        for device_alias in device_alias_db.split('\n'):
+            if regex.search(device_alias):
+                return device_alias.split()[2]
+
+    def close(self):
+        """ Close connection with MDS switch """
+        self.conn.disconnect()
+
+class ZoneSet(object):
+    """docstring for ZoneSet"""
+    def __init__(self, mds):
+        super(ZoneSet, self).__init__()
+        self.mds = mds
+
+        # Instantiate a netmiko connection with MDS
+        self.conn = ConnectHandler(**mds)
+
+    def exists(self, zoneset_name, vsan_id):
+        """ Check if a specifc zoneset name exists on MDS switch opening a connection with MDS switch
+        and execute \"show zoneset brief\" commands receiving vsan id as a param  """
+
+        # Receive VSAN ID param and define the zoneset command,
+        # send to MDS, store the result into a variable
+        command = 'show zoneset brief vsan %s' % vsan_id
+        zoneset_brief = self.conn.send_command(command)
+        
+        # Compile a regex with the received zoneset name
+        # make a search into the zoneset result variable,
+        # return True if the zoneset name and VSAN ID was found or False if doesn't
+        regex = re.compile("^zoneset.*(%s).vsan.*(%s)" % (zoneset_name,vsan_id))
+        
+        if regex.search(zoneset_brief):
+            return True
+        else:
+            return False
+        
+    def close(self):
+        """ Close connection with MDS switch """
+        self.conn.disconnect()
