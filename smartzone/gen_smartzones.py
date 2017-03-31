@@ -23,56 +23,37 @@ from cisco_funcs import *
 # Note: The preferred number of members per zone is 2, and the maximum recommended limit is 50.
 SMARTZONE_MEMBERS_LIMIT = 50
 
-# def generate_smartzones(config_file, zoneset, vsan, fabric, switch=None, check=False, mds=None):
+def generate_smartzones(config, zoneset, vsan, fabric, switch=None, check=False, mds=None):
 
-#     try:
-#         config = ConfigParser.ConfigParser()
-#         config.read(config_file)
-#     except Exception, e:
-#         print bcolors.FAIL + "Error reading config file!" + bcolors.ENDC
-#         print bcolors.BOLD + "Exception:" + bcolors.ENDC + "\n%s" % e
-#         exit(1)
+        if switch:
+            print bcolors.OKGREEN + "\nGenerating commands to switch %s ... \n" % switch + bcolors.ENDC
+        else:
+            print bcolors.OKGREEN + "\nGenerating commands to FABRIC %s ... \n" % fabric + bcolors.ENDC
+        sleep(3)
 
-#     hosts_per_zone = {}
-#     pwwns = []
+        print "config t"
+        print "device-alias database"
 
-#     for host in config.sections():
-#         pwwns.append(config.get(host, fabric))
+        for pwwn, hosts in config.get('device-aliases').get('rename').iteritems():
+            print "  device-alias rename %s %s" % (hosts.get('from'), hosts.get('to'))
 
-#     for host in config.sections():
-#         for zone in config.get(host, 'zones').split(','):
-#             hosts_per_zone[zone] = []
+        for pwwn, host in config.get('device-aliases').get('create').iteritems():
+            print "  device-alias name %s pwwn %s" % (host, pwwn)
 
-#     for host in config.sections():
-#         for zone in config.get(host, 'zones').split(','):
-#             hosts_per_zone[zone].append(host)
+        print "device-alias commit\n"
 
-#     if check:
-#         check_on_switch(mds, zoneset, pwwns, hosts_per_zone, vsan, fabric, switch)
-#     else:
-#         if switch:
-#             print bcolors.OKGREEN + "\nGenerating commands to switch %s ... \n" % switch + bcolors.ENDC
-#         else:
-#             print bcolors.OKGREEN + "\nGenerating commands to FABRIC %s ... \n" % fabric + bcolors.ENDC
-#         sleep(3)
-#         print "config t"
-#         print "device-alias database"
-#         for host in config.sections():
-#             print "  device-alias name %s pwwn %s" % (host.strip(), config.get(host, fabric))
-#         print "device-alias commit\n"
+        for zone, hosts in config.get('hosts_per_zone').iteritems():
+            if len(zone) > 1:
+                print "zone name %s vsan %s" % (zone.strip(), vsan)
+                for host in hosts:
+                    print "  member device-alias %s initiator" % host.strip()
+                print "exit\n"
 
-#         for zone, hosts in hosts_per_zone.iteritems():
-#             if len(zone) > 1:
-#                 print "zone name %s vsan %s" % (zone.strip(), vsan)
-#                 for host in hosts:
-#                     print "  member device-alias %s initiator" % host.strip()
-#                 print "exit\n"
+        print "zoneset activate name %s vsan %s\n" % (zoneset, vsan)
 
-#         print "zoneset activate name %s vsan %s\n" % (zoneset, vsan)
+        print "copy running-config startup-config\n"
 
-#         print "copy running-config startup-config\n"
-
-def load_config(config_file):
+def load_config(config_file, fabric):
     """ Prompts yes or no response to user user.
     Returns True for yes and False for no """
 
@@ -147,11 +128,20 @@ if __name__ == "__main__":
     zoneset = args.zoneset
     fabric = args.fabric
     switch = None
+    config = load_config(config_file, fabric)
 
     if not args.check:
         # if the argument --check wasn't passed we'll
         # generate the commands without any validation
-        generate_smartzones(config_file, zoneset, vsan, fabric)
+
+        aliases = {'rename': {}, 'create': {}}
+        
+        for host, pwwn in config.get('hosts').iteritems():
+            aliases['create'].update({ pwwn: host })
+
+        config.update({ 'device-aliases': aliases })
+        
+        generate_smartzones(config, zoneset, vsan, fabric)
     else:
         # loading all extra arguments if --check passed
         if args.password :
@@ -183,8 +173,6 @@ if __name__ == "__main__":
             'use_keys': use_keys
         }
 
-        config = load_config(config_file)
-
         print bcolors.OKGREEN + "Initiate validations ...\n" + bcolors.ENDC
         print bcolors.BOLD + "Validating ZoneSet %s and VSAN ID %s on MDS..." % (zoneset, vsan) + bcolors.ENDC
 
@@ -194,15 +182,27 @@ if __name__ == "__main__":
         if zone_set.exists(zoneset,vsan):
             zoneset_existent = True
 
-        device_alias = DeviceAlias(mds)
-        existent_aliases = {}
+        zone_set.close()
 
-        for pwwn in config.get('hosts').values():
+        if zoneset_existent is not True:
+            print bcolors.FAIL + "\nZoneSet \"%s\" and/or VSAN ID %s doesn't exists!\nExiting...\n" % (zoneset, vsan) + bcolors.ENDC
+            exit(1)
+
+        device_alias = DeviceAlias(mds)
+        aliases = {'rename': {}, 'create': {}}
+
+        for host, pwwn in config.get('hosts').iteritems():
             print bcolors.BOLD + "Validating if device-alias exists with pwwn %s on MDS..." % pwwn + bcolors.ENDC
-            for host in config.get('hosts').keys():
-                if device_alias.exists(pwwn):
-                    alias = device_alias.exists(pwwn)
-                    existent_aliases.update({ pwwn: {'from': alias, 'to': host} })
+            if device_alias.exists(pwwn):
+                alias = device_alias.exists(pwwn)
+                if alias != host:
+                    aliases['rename'].update({ pwwn: {'from': alias, 'to': host} })
+            else:
+                aliases['create'].update({ pwwn: host })
+
+        config.update({ 'device-aliases': aliases })
+
+        device_alias.close()
 
         smartzone = SmartZone(mds)
         non_existent_zones = []
@@ -216,3 +216,31 @@ if __name__ == "__main__":
             print bcolors.BOLD + "Validating number of members of %s on MDS..." % zone.strip() + bcolors.ENDC
             zone_members[zone] = smartzone.count_members(zone)
 
+        smartzone.close()
+
+        # Checks before generate commands
+        zone_over_limit = 0
+        for zone, members in zone_members.iteritems():
+            if members >= SMARTZONE_MEMBERS_LIMIT:
+                zone_over_limit += 1
+                print bcolors.FAIL + "Zone \"%s\" has more then %d members (%s)" % (zone.strip(), SMARTZONE_MEMBERS_LIMIT, members) + bcolors.ENDC
+
+        if zone_over_limit > 0:
+            if confirm("Are you sure you want to continue?"):
+                pass
+            else:
+                print "Exiting..."
+                exit(1)
+
+        if len(non_existent_zones) > 0:
+            print bcolors.WARNING + "\n### ATENTION! Some Zone(s) doesn't exists ... ###\n" + bcolors.ENDC
+            for zone in non_existent_zones:
+                print bcolors.FAIL + "Zone \"%s\" doesn't exists!" % zone.strip() + bcolors.ENDC
+
+            if confirm("Are you sure you want to continue?"):
+                pass
+            else:
+                print "Exiting..."
+                exit(1)
+        
+        generate_smartzones(config, zoneset, vsan, fabric, switch=switch, check=True, mds=mds)
