@@ -4,6 +4,7 @@
 # uses netmiko and ciscoconfparse
 
 import re
+from sys import exit
 
 # check if netmiko python library is already installed
 try:
@@ -105,12 +106,12 @@ class SmartZone(object):
     def __init__(self, mds):
         super(SmartZone, self).__init__()
         __mds = mds
-        # Instantiate a netmiko connection with MDS
+        # Create a connection by instantiate a netmiko session with MDS
         self.conn = ConnectHandler(**__mds)
 
     def exists(self, zone_name, vsan_id):
-        """ Check if a specifc zone name exists on MDS switch opening a connection with MDS switch
-        and execute "show zoneset brief" commands receiving vsan id as a param  """
+        """Check if a specifc zone name exists on MDS switch opening a connection with MDS switch
+        and execute "show zoneset brief" commands receiving vsan id as a param"""
 
         # Receive VSAN ID param and define the zoneset command,
         # send to MDS, store the result into a variable
@@ -128,7 +129,7 @@ class SmartZone(object):
             return False
 
     def count_members(self, zone_name):
-        """ Count the total members existent on a specifc smartzone, including initiator and target members """
+        """Count the total members existent on a specifc smartzone, including initiator and target members"""
 
         # Receive zone name as a param and define the command to be
         # send to MDS, store the result into a variable
@@ -154,14 +155,15 @@ class SmartZone(object):
 
 class DeviceAlias(object):
     """Class to work with DeviceAlias by using NetMiko base connection"""
+
     def __init__(self, mds):
         super(DeviceAlias, self).__init__()
         __mds = mds
-        # Instantiate a netmiko connection with MDS
+        # Create a connection by instantiate a netmiko session with MDS
         self.conn = ConnectHandler(**__mds)
 
     def exists(self, pwwn):
-        """ Count the total members existent on a specifc smartzone, including initiator and target members """
+        """Count the total members existent on a specifc smartzone, including initiator and target members """
         
         # Load device-alias database
         command = 'show device-alias database'
@@ -182,15 +184,16 @@ class DeviceAlias(object):
 
 class ZoneSet(object):
     """Class to work with ZoneSet by using NetMiko base connection"""
+
     def __init__(self, mds):
         super(ZoneSet, self).__init__()
         __mds = mds
-        # Instantiate a netmiko connection with MDS
+        # Create a connection by instantiate a netmiko session with MDS
         self.conn = ConnectHandler(**__mds)
 
     def exists(self, zoneset_name, vsan_id):
-        """ Check if a specifc zoneset name exists on MDS switch opening a connection with MDS switch
-        and execute \"show zoneset brief\" commands receiving vsan id as a param  """
+        """Check if a specifc zoneset name exists on MDS switch opening a connection with MDS switch
+        and execute \"show zoneset brief\" commands receiving vsan id as a param"""
 
         # Receive VSAN ID param and define the zoneset command,
         # send to MDS, store the result into a variable
