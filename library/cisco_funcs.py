@@ -107,7 +107,7 @@ class SmartZone(object):
         super(SmartZone, self).__init__()
         __mds = mds
         # Create a connection by instantiate a netmiko session with MDS
-        self.conn = ConnectHandler(**__mds)
+        self.__conn = ConnectHandler(**__mds)
 
     def exists(self, zone_name, vsan_id):
         """Check if a specifc zone name exists on MDS switch opening a connection with MDS switch
@@ -116,7 +116,7 @@ class SmartZone(object):
         # Receive VSAN ID param and define the zoneset command,
         # send to MDS, store the result into a variable
         command = 'show zoneset brief vsan %s' % vsan_id
-        zoneset_brief = self.conn.send_command(command)
+        zoneset_brief = self.__conn.send_command(command)
         
         # Compile a regex with the received zone name
         # make a search into the zoneset resukt variable,
@@ -134,7 +134,7 @@ class SmartZone(object):
         # Receive zone name as a param and define the command to be
         # send to MDS, store the result into a variable
         command = 'show zone name %s' % zone_name
-        zone_members = self.conn.send_command(command)
+        zone_members = self.__conn.send_command(command)
         
         # Compile a regex with the received zone name
         # make a search into the zone result variable,
@@ -151,7 +151,7 @@ class SmartZone(object):
 
     def close(self):
         """ Close connection with MDS switch """
-        self.conn.disconnect()
+        self.__conn.disconnect()
 
 class DeviceAlias(object):
     """Class to work with DeviceAlias by using NetMiko base connection"""
@@ -160,14 +160,14 @@ class DeviceAlias(object):
         super(DeviceAlias, self).__init__()
         __mds = mds
         # Create a connection by instantiate a netmiko session with MDS
-        self.conn = ConnectHandler(**__mds)
+        self.__conn = ConnectHandler(**__mds)
 
     def exists(self, pwwn):
         """Count the total members existent on a specifc smartzone, including initiator and target members """
         
         # Load device-alias database
         command = 'show device-alias database'
-        device_alias_db = self.conn.send_command(command)
+        device_alias_db = self.__conn.send_command(command)
 
         # Compile a regex with the received pwwn
         # make a search into the device-alias database
@@ -180,7 +180,7 @@ class DeviceAlias(object):
 
     def close(self):
         """ Close connection with MDS switch """
-        self.conn.disconnect()
+        self.__conn.disconnect()
 
 class ZoneSet(object):
     """Class to work with ZoneSet by using NetMiko base connection"""
@@ -189,7 +189,7 @@ class ZoneSet(object):
         super(ZoneSet, self).__init__()
         __mds = mds
         # Create a connection by instantiate a netmiko session with MDS
-        self.conn = ConnectHandler(**__mds)
+        self.__conn = ConnectHandler(**__mds)
 
     def exists(self, zoneset_name, vsan_id):
         """Check if a specifc zoneset name exists on MDS switch opening a connection with MDS switch
@@ -198,7 +198,7 @@ class ZoneSet(object):
         # Receive VSAN ID param and define the zoneset command,
         # send to MDS, store the result into a variable
         command = 'show zoneset brief vsan %s' % vsan_id
-        zoneset_brief = self.conn.send_command(command)
+        zoneset_brief = self.__conn.send_command(command)
         
         # Compile a regex with the received zoneset name
         # make a search into the zoneset result variable,
@@ -212,4 +212,4 @@ class ZoneSet(object):
         
     def close(self):
         """ Close connection with MDS switch """
-        self.conn.disconnect()
+        self.__conn.disconnect()
