@@ -31,16 +31,18 @@ def generate_smartzones(config, zoneset, vsan, fabric, switch=None, check=False,
             print bcolors.OKGREEN + "\nGenerating commands to FABRIC %s ... \n" % fabric + bcolors.ENDC
         sleep(3)
 
-        print "config t"
-        print "device-alias database"
+        print "config t\n"
 
-        for pwwn, hosts in config.get('device-aliases').get('rename').iteritems():
-            print "  device-alias rename %s %s" % (hosts.get('from'), hosts.get('to'))
+        if config.get('device-aliases').get('create') or config.get('device-aliases').get('rename'):
+            print "device-alias database"
 
-        for pwwn, host in config.get('device-aliases').get('create').iteritems():
-            print "  device-alias name %s pwwn %s" % (host, pwwn)
+            for pwwn, hosts in config.get('device-aliases').get('rename').iteritems():
+                print "  device-alias rename %s %s" % (hosts.get('from'), hosts.get('to'))
 
-        print "device-alias commit\n"
+            for pwwn, host in config.get('device-aliases').get('create').iteritems():
+                print "  device-alias name %s pwwn %s" % (host, pwwn)
+
+            print "device-alias commit\n"
 
         for zone, hosts in config.get('hosts_per_zone').iteritems():
             if len(zone) > 1:
